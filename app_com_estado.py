@@ -49,7 +49,7 @@ def previsao_random_forest(dados):
     df['Target'] = (df['Retorno'].shift(-1) > 0).astype(int)
     df.dropna(inplace=True)
 
-    if len(df) < 10:
+    if df.shape[0] < 10 or df['Target'].nunique() < 2:
         return "Indefinido"
 
     X = df[['Close']]
@@ -57,7 +57,13 @@ def previsao_random_forest(dados):
 
     modelo = RandomForestClassifier(n_estimators=100, random_state=42)
     modelo.fit(X, y)
-    previsao = modelo.predict(X.tail(1))
+
+    # Proteção final: garantir que há linha válida para prever
+    X_pred = X.tail(1)
+    if X_pred.isnull().values.any() or X_pred.shape != (1, 1):
+        return "Indefinido"
+
+    previsao = modelo.predict(X_pred)
     return "COMPRAR" if previsao[0] == 1 else "VENDER"
 
 st.title("📊 Corpus Fractalis – Inteligência Fractal de Mercado")
