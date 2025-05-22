@@ -172,7 +172,7 @@ dados_exportacao = {
     "Data da Análise": data_hoje,
     "Preço Atual": preco_atual,
     "Regime Atual": regime,
-    "Decisão da IA": nova_decisao or registro.get("última_decisão", "N/A"),
+    "Decisão da IA": estado[ativo].get("última_decisão", "N/A"),
     "Posição": posicao
 }
 
