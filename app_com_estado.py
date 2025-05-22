@@ -101,7 +101,7 @@ if st.button("Executar Análise"):
         else:
             st.warning(f"⚠️ Regime atual: {regime} — IA suspensa")
 
-               estado[ativo] = {
+        estado[ativo] = {
             "última_data": str(data_hoje),
             "último_regime": str(regime),
             "última_decisão": str(nova_decisao or registro.get("última_decisão", "N/A")),
@@ -109,7 +109,7 @@ if st.button("Executar Análise"):
             "posição": str(posicao)
         }
 
-
         salvar_estado(estado)
+
         st.subheader("📘 Memória Tática do Ativo")
         st.json(estado[ativo])
