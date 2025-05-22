@@ -19,14 +19,29 @@ def salvar_estado(estado):
         json.dump(estado, f, indent=4)
 
 def classificar_regime(dados):
+    # Proteção 1: coluna 'Close' existe?
+    if 'Close' not in dados.columns:
+        return "Indefinido"
+
+    # Proteção 2: pelo menos 10 valores?
+    if len(dados['Close'].dropna()) < 10:
+        return "Dados insuficientes"
+
+    # Cálculo da volatilidade
     volatilidade = dados['Close'].pct_change().rolling(window=5).std()
+
+    # Proteção 3: remove NaNs
     volatilidade = volatilidade.dropna()
 
     if len(volatilidade) == 0:
         return "Dados insuficientes"
 
+    # Proteção 4: garantir valor numérico válido
     ultimo_valor = volatilidade.iloc[-1]
+    if pd.isna(ultimo_valor):
+        return "Indefinido"
 
+    # Lógica final do regime
     if ultimo_valor < 0.01:
         return "Estável"
     elif ultimo_valor > 0.03:
