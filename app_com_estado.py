@@ -20,9 +20,16 @@ def salvar_estado(estado):
 
 def classificar_regime(dados):
     volatilidade = dados['Close'].pct_change().rolling(window=5).std()
-    if volatilidade.iloc[-1] < 0.01:
+    volatilidade = volatilidade.dropna()
+
+    if len(volatilidade) == 0:
+        return "Dados insuficientes"
+
+    ultimo_valor = volatilidade.iloc[-1]
+
+    if ultimo_valor < 0.01:
         return "Estável"
-    elif volatilidade.iloc[-1] > 0.03:
+    elif ultimo_valor > 0.03:
         return "Caótico"
     else:
         return "Transição"
