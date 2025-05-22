@@ -46,45 +46,52 @@ def avaliar_previsibilidade(dados):
     except:
         return 0
 
-# Coleta e análise
-for ativo in ativos:
-    try:
-        dados = yf.download(ativo, start="2023-01-01", interval="1d", progress=False)
-        if dados.empty or dados['Close'].isna().sum() > 10:
-            status = "Inválido ou Sem Dados"
-        else:
-            regime = classificar_regime_geral(dados)
-            score = avaliar_previsibilidade(dados)
-            volume_medio = round(dados['Volume'].dropna().tail(30).mean(), 2)
+def salvar_watchlist(watchlist, path_json="watchlist.json", path_csv="watchlist.csv"):
+    with open(path_json, "w") as f:
+        json.dump(watchlist, f, indent=4)
+    pd.DataFrame(watchlist).to_csv(path_csv, index=False)
 
-            if volume_medio < 1000000:
-                status = "Ilíquido"
-            elif score < 0.52:
-                status = "Sinal fraco"
-            elif regime == "Indefinido":
-                status = "Ruído / Volatilidade baixa"
+def gerar_watchlist():
+    watchlist = []
+
+    for ativo in ativos:
+        try:
+            dados = yf.download(ativo, start="2023-01-01", interval="1d", progress=False)
+            if dados.empty or dados['Close'].isna().sum() > 10:
+                status = "Inválido ou Sem Dados"
             else:
-                status = "Operável"
+                regime = classificar_regime_geral(dados)
+                score = avaliar_previsibilidade(dados)
+                volume_medio = round(dados['Volume'].dropna().tail(30).mean(), 2)
 
+                if volume_medio < 1000000:
+                    status = "Ilíquido"
+                elif score < 0.52:
+                    status = "Sinal fraco"
+                elif regime == "Indefinido":
+                    status = "Ruído / Volatilidade baixa"
+                else:
+                    status = "Operável"
+
+                watchlist.append({
+                    "ticker": ativo,
+                    "regime_atual": regime,
+                    "acuracia_IA": score,
+                    "volume_medio": volume_medio,
+                    "status": status
+                })
+        except:
             watchlist.append({
                 "ticker": ativo,
-                "regime_atual": regime,
-                "acuracia_IA": score,
-                "volume_medio": volume_medio,
-                "status": status
+                "regime_atual": "Erro",
+                "acuracia_IA": 0,
+                "volume_medio": 0,
+                "status": "Falha ao processar"
             })
-    except:
-        watchlist.append({
-            "ticker": ativo,
-            "regime_atual": "Erro",
-            "acuracia_IA": 0,
-            "volume_medio": 0,
-            "status": "Falha ao processar"
-        })
 
-# Exporta para arquivo JSON e CSV
-with open("watchlist.json", "w") as f:
-    json.dump(watchlist, f, indent=4)
+    salvar_watchlist(watchlist)
+    print("✅ Watchlist gerada com sucesso!")
 
-pd.DataFrame(watchlist).to_csv("watchlist.csv", index=False)
-print("✅ Watchlist gerada com sucesso!")
+# Executa ao rodar diretamente
+if __name__ == "__main__":
+    gerar_watchlist()
