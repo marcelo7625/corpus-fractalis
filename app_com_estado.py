@@ -164,25 +164,6 @@ else:
             st.subheader("📘 Memória Tática do Ativo")
             st.json(estado[ativo])
 
-if st.button("Executar Análise"):
-    with st.spinner(...):
-        # Download de dados e análise
-    
-    if dados.empty:
-        st.error(...)
-    else:
-        # Análise e classificação
-        regime = classificar_regime(dados)
-
-        # Plotar gráfico
-        plotar_grafico_colorido(dados)
-
-        # Lógica da IA, decisões e memória
-        ...
-
-        st.subheader("📘 Memória Tática do Ativo")
-        st.json(estado[ativo])  # ✅ Aqui é onde você deve inserir logo abaixo:
-
         st.subheader("📤 Exportar Resultado")
 
         dados_exportacao = {
@@ -203,26 +184,3 @@ if st.button("Executar Análise"):
             file_name=nome_arquivo,
             mime='text/csv'
         )
-
-# 🔽 Exportação da Análise em CSV
-st.subheader("📤 Exportar Resultado")
-
-dados_exportacao = {
-    "Ativo": ativo,
-    "Data da Análise": data_hoje,
-    "Preço Atual": preco_atual,
-    "Regime Atual": regime,
-    "Decisão da IA": estado[ativo].get("última_decisão", "N/A"),
-    "Posição": posicao
-}
-
-df_export = pd.DataFrame([dados_exportacao])
-
-nome_arquivo = f"analise_{ativo.replace('.SA','')}_{data_hoje}.csv"
-
-st.download_button(
-    label="📥 Baixar Análise em CSV",
-    data=df_export.to_csv(index=False).encode('utf-8'),
-    file_name=nome_arquivo,
-    mime='text/csv'
-)
