@@ -159,8 +159,6 @@ else:
                 "posição": str(posicao)
             }
 
-            salvar_estado(estado)
-
             st.subheader("📤 Exportar Resultado")
 
             dados_exportacao = {
