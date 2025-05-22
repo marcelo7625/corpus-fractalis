@@ -158,8 +158,6 @@ else:
                 "último_preço": float(preco_atual),
                 "posição": str(posicao)
             }
-
-             salvar_estado(estado)
             
             st.subheader("📤 Exportar Resultado")
 
