@@ -6,6 +6,48 @@ from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
 import os
 
+import matplotlib.pyplot as plt
+
+def plotar_grafico_colorido(dados):
+    # Calcula a volatilidade por janela de 5 dias
+    dados['Volatilidade'] = dados['Close'].pct_change().rolling(window=5).std()
+
+    # Define regime local
+    def regime_local(v):
+        if pd.isna(v):
+            return "Indefinido"
+        elif v < 0.01:
+            return "Estável"
+        elif v > 0.03:
+            return "Caótico"
+        else:
+            return "Transição"
+
+    dados['Regime'] = dados['Volatilidade'].apply(regime_local)
+
+    # Cores por regime
+    cor_regime = {
+        "Estável": "green",
+        "Transição": "orange",
+        "Caótico": "red",
+        "Indefinido": "gray"
+    }
+
+    # Cria gráfico segmentado por regime
+    fig, ax = plt.subplots(figsize=(10, 4))
+    regimes_unicos = dados['Regime'].unique()
+
+    for regime in regimes_unicos:
+        segmento = dados[dados['Regime'] == regime]
+        ax.plot(segmento.index, segmento['Close'], color=cor_regime.get(regime, 'gray'), label=regime)
+
+    ax.set_title("📈 Tendência com Regimes Fractais")
+    ax.set_ylabel("Preço de Fechamento")
+    ax.legend()
+    ax.grid(True)
+
+    st.pyplot(fig)
+
 ARQUIVO_ESTADO = 'estado_fractalis.json'
 
 if not os.path.exists(ARQUIVO_ESTADO):
