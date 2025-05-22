@@ -7,15 +7,24 @@ from sklearn.ensemble import RandomForestClassifier
 import os
 import matplotlib.pyplot as plt
 
-# Caminho do arquivo de estado
 ARQUIVO_ESTADO = 'estado_fractalis.json'
+ARQUIVO_WATCHLIST = 'watchlist.json'
 
 # Cria arquivo de estado se não existir
 if not os.path.exists(ARQUIVO_ESTADO):
     with open(ARQUIVO_ESTADO, 'w') as f:
         json.dump({}, f)
 
-# Funções de utilidade
+# Carrega ativos operáveis da watchlist
+def carregar_watchlist():
+    try:
+        with open(ARQUIVO_WATCHLIST, 'r') as f:
+            dados = json.load(f)
+            return [item['ticker'] for item in dados if item['status'] == 'Operável']
+    except:
+        return []
+
+# Utilitários
 def carregar_estado():
     try:
         with open(ARQUIVO_ESTADO, 'r') as f:
@@ -65,7 +74,6 @@ def previsao_random_forest(dados):
 
 def plotar_grafico_colorido(dados):
     dados['Volatilidade'] = dados['Close'].pct_change().rolling(window=5).std()
-
     def regime_local(v):
         if pd.isna(v):
             return "Indefinido"
@@ -75,86 +83,83 @@ def plotar_grafico_colorido(dados):
             return "Caótico"
         else:
             return "Transição"
-
     dados['Regime'] = dados['Volatilidade'].apply(regime_local)
-
     cor_regime = {
         "Estável": "green",
         "Transição": "orange",
         "Caótico": "red",
         "Indefinido": "gray"
     }
-
     fig, ax = plt.subplots(figsize=(10, 4))
-    regimes_unicos = dados['Regime'].unique()
-
-    for regime in regimes_unicos:
+    for regime in dados['Regime'].unique():
         segmento = dados[dados['Regime'] == regime]
         ax.plot(segmento.index, segmento['Close'], color=cor_regime.get(regime, 'gray'), label=regime)
-
     ax.set_title("📈 Tendência com Regimes Fractais")
     ax.set_ylabel("Preço de Fechamento")
     ax.legend()
     ax.grid(True)
-
     st.pyplot(fig)
 
-# Interface do app
-st.title("📊 Corpus Fractalis – Inteligência Fractal de Mercado")
+# Interface
+st.title("📊 Corpus Fractalis – Painel Inteligente com Watchlist")
+ativos_disponiveis = carregar_watchlist()
 
-ativo = st.text_input("Digite o código do ativo (ex: WEGE3.SA)", "WEGE3.SA")
+if not ativos_disponiveis:
+    st.error("⚠️ Nenhum ativo operável disponível. Verifique o arquivo 'watchlist.json'.")
+else:
+    ativo = st.selectbox("Selecione um ativo para análise:", ativos_disponiveis)
 
-if st.button("Executar Análise"):
-    with st.spinner("🔎 Consultando dados do Yahoo Finance..."):
-        try:
-            dados = yf.download(ativo, start="2023-01-01", interval="1d")
-        except Exception as e:
-            st.error("❌ Erro ao obter dados.")
-            dados = pd.DataFrame()
+    if st.button("Executar Análise"):
+        with st.spinner("🔎 Consultando dados do Yahoo Finance..."):
+            try:
+                dados = yf.download(ativo, start="2023-01-01", interval="1d")
+            except Exception as e:
+                st.error("❌ Erro ao obter dados.")
+                dados = pd.DataFrame()
 
-    if dados.empty or 'Close' not in dados.columns:
-        st.error("❌ Dados indisponíveis ou código inválido.")
-    else:
-        regime = classificar_regime(dados)
-
-        st.subheader("📈 Gráfico de Tendência por Regime")
-        plotar_grafico_colorido(dados)
-
-        preco_atual = round(dados['Close'].dropna().iloc[-1], 2)
-        data_hoje = datetime.today().strftime('%Y-%m-%d')
-        estado = carregar_estado()
-        registro = estado.get(ativo, {})
-        posicao = registro.get("posição", "Fechada")
-        nova_decisao = None
-
-        if regime == "Estável":
-            decisao = previsao_random_forest(dados)
-            if decisao == "Indefinido":
-                st.warning("⚠️ IA não conseguiu prever — dados insuficientes.")
-            elif posicao == "Aberta" and registro.get("última_decisão") == decisao:
-                st.info(f"✅ Recomendação mantida: {decisao}")
-            elif posicao == "Aberta" and decisao == "VENDER":
-                nova_decisao = "FECHAR"
-                st.warning("🔄 Reversão: FECHAR posição")
-                posicao = "Fechada"
-            else:
-                nova_decisao = decisao
-                st.success(f"📌 Nova recomendação: {decisao}")
-                posicao = "Aberta"
-        elif regime == "Indefinido":
-            st.warning("⚠️ Regime não pôde ser determinado.")
+        if dados.empty or 'Close' not in dados.columns:
+            st.error("❌ Dados indisponíveis ou código inválido.")
         else:
-            st.warning(f"⚠️ Regime atual: {regime} — IA suspensa")
+            regime = classificar_regime(dados)
 
-        estado[ativo] = {
-            "última_data": str(data_hoje),
-            "último_regime": str(regime),
-            "última_decisão": str(nova_decisao or registro.get("última_decisão", "N/A")),
-            "último_preço": float(preco_atual),
-            "posição": str(posicao)
-        }
+            st.subheader("📈 Gráfico de Tendência por Regime")
+            plotar_grafico_colorido(dados)
 
-        salvar_estado(estado)
+            preco_atual = round(dados['Close'].dropna().iloc[-1], 2)
+            data_hoje = datetime.today().strftime('%Y-%m-%d')
+            estado = carregar_estado()
+            registro = estado.get(ativo, {})
+            posicao = registro.get("posição", "Fechada")
+            nova_decisao = None
 
-        st.subheader("📘 Memória Tática do Ativo")
-        st.json(estado[ativo])
+            if regime == "Estável":
+                decisao = previsao_random_forest(dados)
+                if decisao == "Indefinido":
+                    st.warning("⚠️ IA não conseguiu prever — dados insuficientes.")
+                elif posicao == "Aberta" and registro.get("última_decisão") == decisao:
+                    st.info(f"✅ Recomendação mantida: {decisao}")
+                elif posicao == "Aberta" and decisao == "VENDER":
+                    nova_decisao = "FECHAR"
+                    st.warning("🔄 Reversão: FECHAR posição")
+                    posicao = "Fechada"
+                else:
+                    nova_decisao = decisao
+                    st.success(f"📌 Nova recomendação: {decisao}")
+                    posicao = "Aberta"
+            elif regime == "Indefinido":
+                st.warning("⚠️ Regime não pôde ser determinado.")
+            else:
+                st.warning(f"⚠️ Regime atual: {regime} — IA suspensa")
+
+            estado[ativo] = {
+                "última_data": str(data_hoje),
+                "último_regime": str(regime),
+                "última_decisão": str(nova_decisao or registro.get("última_decisão", "N/A")),
+                "último_preço": float(preco_atual),
+                "posição": str(posicao)
+            }
+
+            salvar_estado(estado)
+
+            st.subheader("📘 Memória Tática do Ativo")
+            st.json(estado[ativo])
