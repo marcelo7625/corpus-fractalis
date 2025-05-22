@@ -4,8 +4,14 @@ import yfinance as yf
 import json
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
+import os
 
 ARQUIVO_ESTADO = 'estado_fractalis.json'
+
+# Garantir que o arquivo existe na primeira execução
+if not os.path.exists(ARQUIVO_ESTADO):
+    with open(ARQUIVO_ESTADO, 'w') as f:
+        json.dump({}, f)
 
 def carregar_estado():
     try:
@@ -19,29 +25,17 @@ def salvar_estado(estado):
         json.dump(estado, f, indent=4)
 
 def classificar_regime(dados):
-    # Proteção 1: coluna 'Close' existe?
-    if 'Close' not in dados.columns:
+    if 'Close' not in dados.columns or len(dados['Close'].dropna()) < 10:
         return "Indefinido"
 
-    # Proteção 2: pelo menos 10 valores?
-    if len(dados['Close'].dropna()) < 10:
-        return "Dados insuficientes"
-
-    # Cálculo da volatilidade
-    volatilidade = dados['Close'].pct_change().rolling(window=5).std()
-
-    # Proteção 3: remove NaNs
-    volatilidade = volatilidade.dropna()
-
+    volatilidade = dados['Close'].pct_change().rolling(window=5).std().dropna()
     if len(volatilidade) == 0:
-        return "Dados insuficientes"
+        return "Indefinido"
 
-    # Proteção 4: garantir valor numérico válido
     ultimo_valor = volatilidade.iloc[-1]
     if pd.isna(ultimo_valor):
         return "Indefinido"
 
-    # Lógica final do regime
     if ultimo_valor < 0.01:
         return "Estável"
     elif ultimo_valor > 0.03:
@@ -54,6 +48,9 @@ def previsao_random_forest(dados):
     df['Retorno'] = df['Close'].pct_change()
     df['Target'] = (df['Retorno'].shift(-1) > 0).astype(int)
     df.dropna(inplace=True)
+
+    if len(df) < 10:
+        return "Indefinido"
 
     X = df[['Close']]
     y = df['Target']
@@ -68,24 +65,27 @@ st.title("📊 Corpus Fractalis – Inteligência Fractal de Mercado")
 ativo = st.text_input("Digite o código do ativo (ex: WEGE3.SA)", "WEGE3.SA")
 
 if st.button("Executar Análise"):
-    dados = yf.download(ativo, period="6mo", interval="1d")
-    if dados.empty:
-        st.error("Ativo não encontrado ou sem dados disponíveis.")
+    with st.spinner("🔎 Carregando dados..."):
+        dados = yf.download(ativo, period="6mo", interval="1d")
+
+    if dados.empty or 'Close' not in dados.columns:
+        st.error("❌ Dados indisponíveis ou código inválido.")
     else:
         regime = classificar_regime(dados)
-        preco_atual = round(dados['Close'].iloc[-1], 2)
+        preco_atual = round(dados['Close'].dropna().iloc[-1], 2)
         data_hoje = datetime.today().strftime('%Y-%m-%d')
 
         estado = carregar_estado()
         registro = estado.get(ativo, {})
         posicao = registro.get("posição", "Fechada")
-
         nova_decisao = None
 
         if regime == "Estável":
             decisao = previsao_random_forest(dados)
 
-            if posicao == "Aberta" and registro.get("última_decisão") == decisao:
+            if decisao == "Indefinido":
+                st.warning("⚠️ Dados insuficientes para prever")
+            elif posicao == "Aberta" and registro.get("última_decisão") == decisao:
                 st.info(f"✅ Recomendação mantida: {decisao} (posição já aberta)")
             elif posicao == "Aberta" and decisao == "VENDER":
                 nova_decisao = "FECHAR"
@@ -95,7 +95,8 @@ if st.button("Executar Análise"):
                 nova_decisao = decisao
                 st.success(f"📌 Nova recomendação: {decisao}")
                 posicao = "Aberta"
-
+        elif regime == "Indefinido":
+            st.warning("⚠️ Regime não pôde ser determinado")
         else:
             st.warning(f"⚠️ Regime atual: {regime} – IA suspensa")
 
