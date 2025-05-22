@@ -101,13 +101,14 @@ if st.button("Executar Análise"):
         else:
             st.warning(f"⚠️ Regime atual: {regime} — IA suspensa")
 
-        estado[ativo] = {
-            "última_data": data_hoje,
-            "último_regime": regime,
-            "última_decisão": nova_decisao or registro.get("última_decisão", "N/A"),
-            "último_preço": preco_atual,
-            "posição": posicao
+               estado[ativo] = {
+            "última_data": str(data_hoje),
+            "último_regime": str(regime),
+            "última_decisão": str(nova_decisao or registro.get("última_decisão", "N/A")),
+            "último_preço": float(preco_atual),
+            "posição": str(posicao)
         }
+
 
         salvar_estado(estado)
         st.subheader("📘 Memória Tática do Ativo")
