@@ -111,7 +111,7 @@ ativo = st.text_input("Digite o código do ativo (ex: WEGE3.SA)", "WEGE3.SA")
 if st.button("Executar Análise"):
     with st.spinner("🔎 Consultando dados do Yahoo Finance..."):
         try:
-            dados = yf.download(ativo, period="6mo", interval="1d")
+            dados = yf.download(ativo, start="2023-01-01", interval="1d")
         except Exception as e:
             st.error("❌ Erro ao obter dados.")
             dados = pd.DataFrame()
