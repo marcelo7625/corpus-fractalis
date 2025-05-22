@@ -161,7 +161,24 @@ else:
 
             salvar_estado(estado)
 
-            st.subheader("📘 Memória Tática do Ativo")
-            st.json(estado[ativo])
+            st.subheader("📤 Exportar Resultado")
 
-        st.subheader("📤 Exportar Resultado")
+            dados_exportacao = {
+                "Ativo": ativo,
+                "Data da Análise": data_hoje,
+                "Preço Atual": preco_atual,
+                "Regime Atual": regime,
+                "Decisão da IA": estado[ativo].get("última_decisão", "N/A"),
+                "Posição": posicao
+            }
+
+            df_export = pd.DataFrame([dados_exportacao])
+            nome_arquivo = f"analise_{ativo.replace('.SA','')}_{data_hoje}.csv"
+
+            st.download_button(
+                label="📥 Baixar Análise em CSV",
+                data=df_export.to_csv(index=False).encode('utf-8'),
+                file_name=nome_arquivo,
+                mime='text/csv'
+            )
+
